@@ -98,7 +98,3 @@ If you have the Go source code:
 go mod tidy
 go build -o vr.exe main.go
 ```
-
-## License
-
-This project is part of kiourin-studio/video-resolution.
