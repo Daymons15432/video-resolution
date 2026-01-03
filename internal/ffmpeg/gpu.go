@@ -15,11 +15,9 @@ const (
 )
 
 var (
-	// Global variable to store forced GPU mode
 	forcedGPU GPU = ""
 )
 
-// DetectGPU detects available GPU
 func DetectGPU() GPU {
 	if forcedGPU != "" {
 		return forcedGPU
@@ -33,28 +31,23 @@ func DetectGPU() GPU {
 
 	output := string(out)
 
-	// Priority: NVIDIA -> Intel -> AMD -> CPU
 	if strings.Contains(output, "h264_nvenc") ||
 		strings.Contains(output, "hevc_nvenc") {
 		return NVIDIA
 	}
 
-	// Intel QSV (Quick Sync Video)
 	if strings.Contains(output, "h264_qsv") ||
 		strings.Contains(output, "hevc_qsv") {
 		return INTEL
 	}
 
-	// AMD AMF/VCE
 	if strings.Contains(output, "h264_amf") ||
 		strings.Contains(output, "hevc_amf") {
 		return AMD
 	}
 
-	// VAAPI (common for both Intel and AMD on Linux)
 	if strings.Contains(output, "h264_vaapi") ||
 		strings.Contains(output, "hevc_vaapi") {
-		// Try to determine vendor
 		vendorCmd := exec.Command("lspci", "|", "grep", "-i", "vga")
 		vendorOut, _ := vendorCmd.Output()
 		vendorStr := string(vendorOut)
@@ -70,7 +63,6 @@ func DetectGPU() GPU {
 	return CPU
 }
 
-// HasEncoder checks if specific encoder is available
 func HasEncoder(encoderName string) bool {
 	cmd := exec.Command("ffmpeg", "-encoders")
 	out, err := cmd.Output()
@@ -80,7 +72,6 @@ func HasEncoder(encoderName string) bool {
 	return strings.Contains(string(out), encoderName)
 }
 
-// SetForcedGPU sets a forced GPU mode
 func SetForcedGPU(mode string) GPU {
 	switch mode {
 	case "nvidia":
@@ -96,7 +87,6 @@ func SetForcedGPU(mode string) GPU {
 			forcedGPU = INTEL
 			return INTEL
 		}
-		// Fallback to VAAPI for Intel
 		if HasEncoder("h264_vaapi") || HasEncoder("hevc_vaapi") {
 			forcedGPU = INTEL
 			return INTEL
@@ -109,7 +99,6 @@ func SetForcedGPU(mode string) GPU {
 			forcedGPU = AMD
 			return AMD
 		}
-		// Fallback to VAAPI for AMD
 		if HasEncoder("h264_vaapi") || HasEncoder("hevc_vaapi") {
 			forcedGPU = AMD
 			return AMD
@@ -118,7 +107,6 @@ func SetForcedGPU(mode string) GPU {
 		return CPU
 
 	case "gpu", "igpu":
-		// Auto-detect any GPU
 		if HasEncoder("h264_nvenc") || HasEncoder("hevc_nvenc") {
 			forcedGPU = NVIDIA
 			return NVIDIA
@@ -132,7 +120,6 @@ func SetForcedGPU(mode string) GPU {
 			return AMD
 		}
 		if HasEncoder("h264_vaapi") || HasEncoder("hevc_vaapi") {
-			// Default to Intel if VAAPI detected
 			forcedGPU = INTEL
 			return INTEL
 		}
@@ -144,17 +131,15 @@ func SetForcedGPU(mode string) GPU {
 		return CPU
 
 	default:
-		forcedGPU = "" // Auto-detect
+		forcedGPU = ""
 		return DetectGPU()
 	}
 }
 
-// ResetForcedGPU resets to auto-detect mode
 func ResetForcedGPU() {
 	forcedGPU = ""
 }
 
-// GetAvailableGPUs returns list of available GPU types
 func GetAvailableGPUs() []GPU {
 	var gpus []GPU
 
@@ -183,7 +168,6 @@ func GetAvailableGPUs() []GPU {
 
 	if strings.Contains(output, "h264_vaapi") ||
 		strings.Contains(output, "hevc_vaapi") {
-		// Check if already added
 		vaapiAdded := false
 		for _, g := range gpus {
 			if g == INTEL || g == AMD {
@@ -192,12 +176,10 @@ func GetAvailableGPUs() []GPU {
 			}
 		}
 		if !vaapiAdded {
-			// We can't determine vendor, add as "GPU"
-			gpus = append(gpus, INTEL) // Default to Intel for VAAPI
+			gpus = append(gpus, INTEL)
 		}
 	}
 
-	// Always add CPU as fallback
 	gpus = append(gpus, CPU)
 
 	return gpus

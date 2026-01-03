@@ -1,6 +1,9 @@
 package encoder
 
-import "kiourin-studio/video-resolution/internal/ffmpeg"
+import (
+	"kiourin-studio/video-resolution/internal/ffmpeg"
+	"strings"
+)
 
 type Config struct {
 	Codec  string
@@ -20,6 +23,115 @@ func Auto(profile Profile) Config {
 	default:
 		return cpuConfig(profile)
 	}
+}
+
+func ApplyCompression(config Config, gpu ffmpeg.GPU, profile Profile) Config {
+	newConfig := Config{
+		Codec:  config.Codec,
+		Params: make([]string, len(config.Params)),
+	}
+	copy(newConfig.Params, config.Params)
+
+	switch gpu {
+	case ffmpeg.NVIDIA:
+		compressionValue := "28"
+		if profile == Low {
+			compressionValue = "32"
+		} else if profile == High {
+			compressionValue = "24"
+		}
+
+		for i, param := range newConfig.Params {
+			if param == "-cq" && i+1 < len(newConfig.Params) {
+				newConfig.Params[i+1] = compressionValue
+				return newConfig
+			}
+		}
+		newConfig.Params = append(newConfig.Params, "-cq", compressionValue)
+
+	case ffmpeg.INTEL:
+		if strings.Contains(config.Codec, "qsv") {
+			qualityValue := "28"
+			if profile == Low {
+				qualityValue = "32"
+			} else if profile == High {
+				qualityValue = "24"
+			}
+
+			for i, param := range newConfig.Params {
+				if param == "-global_quality" && i+1 < len(newConfig.Params) {
+					newConfig.Params[i+1] = qualityValue
+					return newConfig
+				}
+			}
+			newConfig.Params = append(newConfig.Params, "-global_quality", qualityValue)
+		} else if strings.Contains(config.Codec, "vaapi") {
+			qpValue := "28"
+			if profile == Low {
+				qpValue = "32"
+			} else if profile == High {
+				qpValue = "24"
+			}
+
+			for i, param := range newConfig.Params {
+				if param == "-qp" && i+1 < len(newConfig.Params) {
+					newConfig.Params[i+1] = qpValue
+					return newConfig
+				}
+			}
+			newConfig.Params = append(newConfig.Params, "-qp", qpValue)
+		}
+
+	case ffmpeg.AMD:
+		if strings.Contains(config.Codec, "amf") {
+			qpValue := "28"
+			if profile == Low {
+				qpValue = "32"
+			} else if profile == High {
+				qpValue = "24"
+			}
+
+			for i := 0; i < len(newConfig.Params); i++ {
+				if (newConfig.Params[i] == "-qp_i" || newConfig.Params[i] == "-qp_p") &&
+					i+1 < len(newConfig.Params) {
+					newConfig.Params[i+1] = qpValue
+				}
+			}
+		} else if strings.Contains(config.Codec, "vaapi") {
+			qpValue := "28"
+			if profile == Low {
+				qpValue = "32"
+			} else if profile == High {
+				qpValue = "24"
+			}
+
+			for i, param := range newConfig.Params {
+				if param == "-qp" && i+1 < len(newConfig.Params) {
+					newConfig.Params[i+1] = qpValue
+					return newConfig
+				}
+			}
+			newConfig.Params = append(newConfig.Params, "-qp", qpValue)
+		}
+
+	default:
+		crfValue := "28"
+		if profile == Low {
+			crfValue = "32"
+		} else if profile == High {
+			crfValue = "24"
+		}
+
+		for i, param := range newConfig.Params {
+			if param == "-crf" && i+1 < len(newConfig.Params) {
+				newConfig.Params[i+1] = crfValue
+				return newConfig
+			}
+		}
+		newConfig.Params = append(newConfig.Params, "-crf", crfValue)
+	}
+
+	return newConfig
 }
 
 func nvidiaConfig(profile Profile) Config {
@@ -53,7 +165,6 @@ func nvidiaConfig(profile Profile) Config {
 }
 
 func intelConfig(profile Profile) Config {
-	// Try QSV first, fallback to VAAPI
 	if ffmpeg.HasEncoder("h264_qsv") {
 		switch profile {
 		case Low:
@@ -78,7 +189,6 @@ func intelConfig(profile Profile) Config {
 		}
 	}
 
-	// Fallback to VAAPI
 	switch profile {
 	case Low:
 		return Config{"h264_vaapi", []string{
@@ -129,7 +239,6 @@ func amdConfig(profile Profile) Config {
 		}
 	}
 
-	// Fallback to VAAPI for AMD
 	switch profile {
 	case Low:
 		return Config{"h264_vaapi", []string{

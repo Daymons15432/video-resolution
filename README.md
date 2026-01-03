@@ -13,12 +13,17 @@ A powerful command-line tool for automatically upscaling or downscaling video re
 - **Multiple Input Formats**: Supports MP4, MOV, AVI, MKV, WebM, FLV, and WMV
 - **Fallback Mechanisms**: Automatically falls back to CPU encoding if GPU fails
 - **FFmpeg Integration**: Uses FFmpeg for robust, professional-grade video processing
+- **Compression Mode**: Reduce video file size without changing resolution
+- **Flexible Argument Parsing**: Flags can be placed anywhere in the command
+- **Version Information**: Check tool version with `-v` or `-version`
+- **Windows Installer**: Easy Windows installation with automatic FFmpeg setup
 
 ## Usage
 
 ### Basic Syntax
 
 ```bash
+vr [OPTIONS] <input-file> [profile]
 vr [OPTIONS] <scale-mode> <input-file> [profile]
 ```
 
@@ -45,6 +50,9 @@ vr [OPTIONS] <scale-mode> <input-file> [profile]
 - `med`: Balanced quality and speed
 - `high`: Slow encoding, highest quality
 
+#### Compression Only (No Scaling)
+- `-compress`: Compress video without changing its resolution (no upscaling or downscaling).  
+
 ### Examples
 
 #### Basic Usage
@@ -54,6 +62,12 @@ vr -ds "video.mp4"
 
 # Upscale with high quality
 vr -us "video.mp4" high
+
+# Compress only (no scaling), keep original resolution
+vr -compress "video.mp4"
+
+# Compress only with high quality
+vr -compress "video.mp4" high
 ```
 
 #### GPU-Specific Encoding
@@ -164,3 +178,21 @@ go build -o vr main.go
    - Try higher quality profile (`high`)
    - Ensure input video is not already heavily compressed
    - Check that scaling algorithm produces desired resolution
+
+
+## Version History
+
+### v1.1 (Current)
+- Added compression mode (`-compress` flag)
+- Flexible argument parsing (flags anywhere)
+- Version information command (`-v`, `-version`)
+- Windows installer with update detection
+- Improved output filename generation
+- Enhanced error handling and fallbacks
+
+### v1.0
+- Initial release
+- Basic scaling functionality
+- GPU detection and selection
+- Quality profiles
+- Progress tracking
